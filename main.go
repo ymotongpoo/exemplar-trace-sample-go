@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"time"
 
@@ -80,12 +81,22 @@ func initExporter() {
 func main() {
 	initExporter()
 	log.Println("starting loop")
-	t := time.NewTicker(time.Second)
-	for range t.C {
-		log.Println("loop start")
-		Root()
-		log.Println("loop end")
-	}
+	interval := 10 * time.Second
+	t := time.NewTicker(interval)
+	go func() {
+		for range t.C {
+			log.Println("loop start")
+			Root()
+			log.Println("loop end")
+		}
+	}()
+
+	// dummy handler for Cloud Run
+	port := os.Getenv("PORT")
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	})
+	http.ListenAndServe(fmt.Sprintf(":%s", port), nil)
 }
 
 func Root() {
@@ -94,18 +105,13 @@ func Root() {
 	defer span.End()
 
 	start := time.Now().UnixNano()
-	tid := span.SpanContext().TraceID
-	sid := span.SpanContext().SpanID
-	spanName := fmt.Sprintf("projects/%v/traces/%v/spans/%v", ProjectID, tid, sid)
 	Foo(ctx)
 	end := time.Now().UnixNano()
-	log.Printf("span name: %v", spanName)
 	ms := (end - start) / (1000 * 1000)
 
 	measurements := stats.WithMeasurements(MLatency.M(float64(ms)))
 	attachments := stats.WithAttachments(metricdata.Attachments{
-		"@type":    "type.googleapis.com/google.monitoring.v3.SpanContext",
-		"spanName": spanName,
+		metricdata.AttachmentKeySpanContext: span.SpanContext(),
 	})
 	stats.RecordWithOptions(ctx, measurements, attachments)
 	return

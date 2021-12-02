@@ -3,7 +3,7 @@ module github.com/ymotongpoo/exemplar-trace-sample-go
 go 1.16
 
 require (
-	cloud.google.com/go v0.78.0 // indirect
+	cloud.google.com/go v0.78.0
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.5
 	go.opencensus.io v0.23.0
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
